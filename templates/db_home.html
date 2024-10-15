@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Server and Action</title>
+</head>
+<body>
+    <h1>Choose the Type of Server and Action</h1>
+    <form method="POST" action="/">
+        <!-- Server type selection -->
+        <label for="server_type">Choose your server:</label>
+        <select name="server_type" id="server_type" required>
+            <option value="gdrive">Google Drive</option>
+            <option value="aws">AWS S3 (coming soon)</option>
+            <option value="lab">Kresit</option>
+            <!-- Add more server options as needed -->
+        </select>
+        <br><br>
+
+        <!-- Action selection (upload or download) -->
+        <label for="action">Choose Action:</label>
+        <input type="radio" name="action" value="upload" checked> Upload
+        <input type="radio" name="action" value="download"> Download
+        <input type="radio" name="action" value="ml_process"> ML Process
+        <br><br>
+
+        <!-- Submit the form -->
+        <input type="submit" value="Proceed">
+    </form>
+</body>
+</html>
