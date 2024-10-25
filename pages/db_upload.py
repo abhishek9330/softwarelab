@@ -9,7 +9,7 @@ import paramiko
 class UploadPage:
     route = '/upload'
     upload_folder = 'uploads/'  # HARD CODING!!!
-    allowed_extensions = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv', 'xlsx'}
+    allowed_extensions = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv', 'xlsx', 'yaml'}
     endpoint_name = 'upload'
     methods = ['GET', 'POST']
 
@@ -117,7 +117,9 @@ class UploadPage:
         key_filename = credentials.get('key_filename')
 
         # Hardcoded remote directory
-        remote_directory = '/misc/people/idddp/external'
+        lab_destination = request.form.get('lab_destination')
+        remote_directory = lab_destination
+        print(lab_destination)
 
         # Establish an SSH connection
         try:
@@ -128,7 +130,7 @@ class UploadPage:
             if key_filename:
                 ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
             else:
-                ssh_client.connect(host, port=port, username=username, password=password)
+                ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
 
             # Open an SFTP session for file upload
             sftp = ssh_client.open_sftp()

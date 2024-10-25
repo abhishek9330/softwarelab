@@ -3,16 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload the file</title>
+    <title>Upload a File to the Server</title>
 </head>
 <body>
-    <h1>Upload a File to the server</h1>
+    <h1>Upload a File to the Server</h1>
     <form method="POST" action="/upload" enctype="multipart/form-data">
+        <!-- File Upload Section -->
         <label for="file">Choose file:</label>
         <input type="file" name="file" id="file" required>
         <br><br>
+
+        <!-- Destination Selection Section -->
+        {% if session['server_type'] == "lab" %}
+            <label for="lab_destination">Choose the destination where to upload:</label>
+            <select name="lab_destination" id="lab_destination" required>
+                <option value="/misc/people/idddp/Downloads">Downloads</option>
+                <option value="/misc/people/idddp/results">Results</option>
+                <option value="/misc/people/idddp/models">Upload a model file</option>
+                <!-- Add more server options as needed -->
+            </select>
+            <br><br>
+        {% endif %}
+
+        <!-- Submit Button -->
         <input type="submit" value="Upload">
     </form>
 </body>
 </html>
-
