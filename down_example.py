@@ -3,7 +3,7 @@ import os
 # Disable HTTPS requirement in development (use with caution)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-# Set the environment variable to disable the scope changed warning
+# Set the env variable to disable the scope changed warning
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 from webapp import WebApp              

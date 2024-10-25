@@ -8,6 +8,7 @@ from pages.google_drive import GoogleDrivePage
 from pages.google_drive import GoogleDriveCallbackPage       
 from pages.db_upload import UploadPage     
 from pages.db_home import DbHome
+from pages.lab_connection import LabConnection
 
 app = WebApp(title="Database App")
 

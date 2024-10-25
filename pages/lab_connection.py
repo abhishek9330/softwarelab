@@ -21,7 +21,6 @@ class LabConnection:
                 key_filename = None  # No private key file provided
             else:
                 key_filename = key_filename.stream.read()
-
             # Initialize the SSH connection
             if LabConnection.connect_to_lab_machine(host, port, username, password, key_filename):
                 flash('Successfully connected to the lab machine!', 'success')
@@ -44,8 +43,9 @@ class LabConnection:
             if key_filename:
                 ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
             else:
-                ssh_client.connect(host, port=port, username=username, password=password)
+                ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
 
+            
             # Store credentials in session
             session['lab_credentials'] = {
                 'host': host,
