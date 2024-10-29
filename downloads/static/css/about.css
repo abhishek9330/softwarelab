@@ -1,0 +1,19 @@
+.about {
+    background-image: url('../img/background2.jpg');
+    background-size: cover;      
+    background-position: center; 
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    font-family: Arial, sans-serif;
+    color: white;                
+}
+
+.about-main-content {
+    height: 100%;
+    width: 50%;
+    text-align: left;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;    
+    gap: 10px;                 
+}

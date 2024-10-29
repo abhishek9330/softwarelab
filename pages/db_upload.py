@@ -19,9 +19,8 @@ class UploadPage:
     #     session['post_auth_redirect'] = 'upload'  # Set upload as the next action after auth
 
     def allowed_file(self, filename):
-        """Check if the file has an allowed extension."""
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in self.allowed_extensions
-
+        return True
+    
     def view_func(self):
         """Handle file upload requests."""
         if request.method == 'POST':
@@ -41,7 +40,7 @@ class UploadPage:
                 return redirect(request.url)
 
             # Save and process the file if it's allowed
-            if file and self.allowed_file(file.filename):
+            if file:
                 filename = os.path.join(self.upload_folder, file.filename)
                 file.save(filename)
                 print(f"File saved to {filename}")  # Debugging output

@@ -11,12 +11,12 @@ from pages.google_drive import GoogleDrivePage
 from pages.google_drive import GoogleDriveCallbackPage       
 from pages.download import DownloadPage     
 from pages.db_home import DbHome
+from pages.lab_connection import LabConnection
 
 app = WebApp(title="Database App")
 
 app.add_page(DbHome())
-app.add_page(GoogleDrivePage())
-app.add_page(GoogleDriveCallbackPage())
+app.add_page(LabConnection())
 app.add_page(DownloadPage())
 
 # Run the app

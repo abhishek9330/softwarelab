@@ -1,5 +1,46 @@
-<form method="POST" action="/download">
-    <label for="folder_name">Enter the folder name/path to download:</label>
-    <input type="text" name="folder_name" required>
-    <input type="submit" value="Download">
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download a File</title>
+    <script>
+        function fetchFiles() {
+            const folder = document.getElementById('folder_select').value;
+            fetch(`/download?folder=${folder}`)
+                .then(response => response.json())
+                .then(data => {
+                    const fileList = document.getElementById('file_list');
+                    fileList.innerHTML = '';
+                    data.files.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file;
+                        option.textContent = file;
+                        fileList.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+</head>
+<body>
+    <h1>Select Folder and File to Download</h1>
+    <form id="download_form" method="POST" action="/download">
+        <label for="folder_select">Choose a folder:</label>
+        <select id="folder_select" name="folder" onchange="fetchFiles()">
+            <option value="/misc/people/idddp/Downloads">Downloads</option>
+            <option value="/misc/people/idddp/results">Results</option>
+            <option value="/misc/people/idddp/models">Models</option>
+        </select>
+        <br><br>
+
+        <label for="file_list">Files in selected folder:</label>
+        <select id="file_list" name="filename" required>
+            <!-- Files will be dynamically added here -->
+        </select>
+        <br><br>
+
+        <input type="submit" value="Download">
+    </form>
+</body>
+</html>

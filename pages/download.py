@@ -1,6 +1,6 @@
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-from flask import session, redirect, url_for, request, send_file, render_template, flash
+from flask import session, redirect, url_for, request, send_file, render_template, flash, jsonify
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import os
@@ -15,7 +15,21 @@ class DownloadPage:
     methods = ['GET', 'POST']
 
     def view_func(self):
-        if request.method=="POST":
+        if request.method == "GET":
+            # Check if it's an AJAX request for fetching files
+            folder = request.args.get('folder')
+            if folder:
+                # Handle AJAX request to list files
+                files = self.list_files(folder)
+                print(files)
+                return jsonify(files=files)
+            
+            # Render the download page for standard GET requests
+            return render_template('download.html')
+
+        elif request.method == "POST":
+            # Handle regular form submission with server selection
+            print("post request aaya")
             server_type = session.get('server_type')
             if server_type == "lab":
                 return self.lab()
@@ -23,7 +37,42 @@ class DownloadPage:
                 return self.gdrive()
             else:
                 return "Invalid server type", 400
-        return render_template('download.html')
+
+    def list_files(self, folder):
+        """Connects to the remote server and lists files in the specified folder."""
+        files = []
+        try:
+            # SSH connection setup
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            credentials = session.get('lab_credentials')
+
+            if not credentials:
+                flash('No lab machine credentials found. Please connect first.', 'warning')
+                return redirect(url_for('lab_connect'))  # Redirect to the lab connection page if no credentials
+
+            host = credentials['host']
+            port = credentials['port']
+            username = credentials['username']
+            password = credentials.get('password')
+            key_filename = credentials.get('key_filename')
+            # List files in the specified directory
+
+            if key_filename:
+                ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
+            else:
+                ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
+
+            stdin, stdout, stderr = ssh_client.exec_command(f'ls {folder}')
+            files = stdout.read().decode().splitlines()
+            
+            # Close the SSH connection
+            ssh_client.close()
+
+        except Exception as e:
+            print(f"Error: {e}")
+        return files
+
 
     def gdrive(self):
         # Get the credentials stored in session
@@ -149,21 +198,24 @@ class DownloadPage:
         # Send the zip file as a download
         return send_file(zip_filepath, as_attachment=True)
 
+
     def lab(self):
         """
-        Download a folder from the lab machine using SSH and SFTP.
+        Download a file or folder from the lab machine using SSH and SFTP.
         
-        :param remote_folder: Path to the folder on the lab machine to download.
+        :param remote_folder: Path to the file or folder on the lab machine to download.
         :param local_folder: Path to the local folder where the contents should be saved.
         """
         local_folder = self.download_folder
-        remote_folder = request.form.get('folder_name')
-        # Retrieve the credentials from session
+        remote_folder = request.form.get('folder')  
+        filename = request.form.get('filename')     
+        remote_path = os.path.join(remote_folder, filename)
+
         credentials = session.get('lab_credentials')
 
         if not credentials:
             flash('No lab machine credentials found. Please connect first.', 'warning')
-            return redirect(url_for('lab_connect'))  # Redirect to the lab connection page if no credentials
+            return redirect(url_for('lab_connect'))
 
         host = credentials['host']
         port = credentials['port']
@@ -175,63 +227,78 @@ class DownloadPage:
         try:
             ssh_client = paramiko.SSHClient()
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-            # Connect using either password or private key authentication
-            if key_filename:
-                ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
-            else:
-                ssh_client.connect(host, port=port, username=username, password=password)
-
+            ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
             # Open an SFTP session for file download
             sftp = ssh_client.open_sftp()
 
-            # Ensure the local folder exists
-            if not os.path.exists(local_folder):
-                os.makedirs(local_folder)
+            # Check if remote_path is a file or directory
+            try:
+                file_attr = sftp.stat(remote_path)
+                if stat.S_ISREG(file_attr.st_mode):  # It's a file
+                    # Ensure the local folder exists
+                    if not os.path.exists(local_folder):
+                        os.makedirs(local_folder)
 
-            # Stack to track directories to be processed
-            dirs_to_process = [(remote_folder, local_folder)]
+                    local_file_path = os.path.join(local_folder, os.path.basename(remote_path))
+                    print(f"Downloading file: {remote_path} to {local_file_path}")
+                    sftp.get(remote_path, local_file_path)
+                    sftp.close()
+                    ssh_client.close()
 
-            # Iteratively process directories
-            while dirs_to_process:
-                current_remote_dir, current_local_dir = dirs_to_process.pop()
+                    # Send the downloaded file as a response
+                    return send_file(local_file_path, as_attachment=True)
 
-                # Ensure the current local directory exists
-                if not os.path.exists(current_local_dir):
-                    os.makedirs(current_local_dir)
+                elif stat.S_ISDIR(file_attr.st_mode):  # It's a directory
+                    # Ensure the local folder exists
+                    if not os.path.exists(local_folder):
+                        os.makedirs(local_folder)
 
-                # List items in the current remote directory
-                for item in sftp.listdir_attr(current_remote_dir):
-                    remote_item_path = os.path.join(current_remote_dir, item.filename)
-                    local_item_path = os.path.join(current_local_dir, item.filename)
+                    # Stack to track directories to be processed
+                    dirs_to_process = [(remote_path, local_folder)]
 
-                    if stat.S_ISDIR(item.st_mode):  # If it's a directory, add to the stack
-                        dirs_to_process.append((remote_item_path, local_item_path))
-                    else:  # If it's a file, download it
-                        print(f"Downloading file: {remote_item_path} to {local_item_path}")
-                        sftp.get(remote_item_path, local_item_path)
+                    while dirs_to_process:
+                        current_remote_dir, current_local_dir = dirs_to_process.pop()
 
-            print(f"Folder '{remote_folder}' downloaded to '{local_folder}' successfully.")
-            flash(f"Folder '{remote_folder}' successfully downloaded from the lab machine.", 'success')
+                        # Ensure the current local directory exists
+                        if not os.path.exists(current_local_dir):
+                            os.makedirs(current_local_dir)
 
-            # Create a zip file of the downloaded folder
-            zip_filename = f"{remote_folder}.zip"
-            zip_filepath = os.path.join(local_folder, zip_filename)
+                        for item in sftp.listdir_attr(current_remote_dir):
+                            remote_item_path = os.path.join(current_remote_dir, item.filename)
+                            local_item_path = os.path.join(current_local_dir, item.filename)
 
-            with zipfile.ZipFile(zip_filepath, 'w') as zipf:
-                for root, dirs, files in os.walk(local_folder):
-                    for file in files:
-                        zipf.write(os.path.join(root, file), 
-                                   arcname=os.path.relpath(os.path.join(root, file), local_folder))
+                            if stat.S_ISDIR(item.st_mode):  # Directory
+                                dirs_to_process.append((remote_item_path, local_item_path))
+                            else:  # File
+                                print(f"Downloading file: {remote_item_path} to {local_item_path}")
+                                sftp.get(remote_item_path, local_item_path)
 
-            # Close the SFTP session and SSH connection
-            sftp.close()
-            ssh_client.close()
+                    print(f"Folder '{remote_path}' downloaded to '{local_folder}' successfully.")
+                    flash(f"Folder '{remote_path}' successfully downloaded from the lab machine.", 'success')
 
-            # Send the zip file as a download
-            return send_file(zip_filepath, as_attachment=True)
+                    # Create a zip file of the downloaded folder
+                    zip_filename = f"{os.path.basename(remote_path)}.zip"
+                    zip_filepath = os.path.join(local_folder, zip_filename)
+
+                    with zipfile.ZipFile(zip_filepath, 'w') as zipf:
+                        for root, dirs, files in os.walk(local_folder):
+                            for file in files:
+                                zipf.write(os.path.join(root, file),
+                                           arcname=os.path.relpath(os.path.join(root, file), local_folder))
+
+                    sftp.close()
+                    ssh_client.close()
+
+                    # Send the zip file as a download
+                    return send_file(zip_filepath, as_attachment=True)
+
+            except FileNotFoundError:
+                flash(f"The specified path '{remote_path}' does not exist on the lab machine.", 'danger')
+                return redirect(url_for('download'))
 
         except paramiko.SSHException as e:
             print(f"Failed to connect or download files: {e}")
             flash(f"Failed to connect to the lab machine: {e}", 'danger')
-            return redirect(url_for('lab_connect'))  
+            return redirect(url_for('lab_connect'))
+
+  
