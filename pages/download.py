@@ -1,12 +1,13 @@
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-from flask import session, redirect, url_for, request, send_file, render_template, flash, jsonify
+from flask import session, redirect, url_for, request, send_file, render_template, flash, jsonify, after_this_request
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import os
 import zipfile
 import paramiko
 import stat
+import shutil
 
 class DownloadPage:
     route = '/download'
@@ -14,7 +15,7 @@ class DownloadPage:
     endpoint_name = 'download'
     methods = ['GET', 'POST']
 
-    def view_func(self):
+    def view_func(self):    
         if request.method == "GET":
             # Check if it's an AJAX request for fetching files
             folder = request.args.get('folder')
@@ -210,6 +211,11 @@ class DownloadPage:
         remote_folder = request.form.get('folder')  
         filename = request.form.get('filename')     
         remote_path = os.path.join(remote_folder, filename)
+
+        @after_this_request
+        def remove_folder(response):
+            shutil.rmtree(local_folder)
+            return response
 
         credentials = session.get('lab_credentials')
 
