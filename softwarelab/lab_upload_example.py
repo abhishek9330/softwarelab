@@ -3,9 +3,7 @@ import os
 # Disable HTTPS requirement in development (use with caution)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-from webapp import WebApp              
-from pages.google_drive import GoogleDrivePage       
-from pages.google_drive import GoogleDriveCallbackPage       
+from webapp import WebApp                  
 from pages.db_upload import UploadPage     
 from pages.db_home import DbHome
 from pages.lab_connection import LabConnection
