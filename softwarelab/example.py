@@ -19,7 +19,7 @@ app.add_page(DbHome())
 app.add_page(LabConnection())
 app.add_page(UploadPage())
 app.add_page(DownloadPage())
-app.add_page(MLProcessing)
+app.add_page(MLProcessing())
 
 # Run the app
 if __name__ == '__main__':

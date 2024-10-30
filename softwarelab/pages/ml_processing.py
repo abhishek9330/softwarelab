@@ -8,11 +8,10 @@ class MLProcessing:
     endpoint_name = 'ml_process'
     methods = ['GET', 'POST']
 
-    @staticmethod
-    def view_func():
+    def view_func(self):
         if request.method=="GET":
-            models = list_files("/misc/people/idddp/models")
-            data_files = list_files("/misc/people/idddp/data")
+            models = self.list_files("/misc/people/idddp/models")
+            data_files = self.list_files("/misc/people/idddp/data")
             return render_template('ml_processing.html', models=models, data_files=data_files)
 
         if request.method == "POST":
@@ -27,7 +26,7 @@ class MLProcessing:
 
             # Based on the selected model, run the appropriate function
             
-            result = run_model(data_file_path, model, "/misc/people/idddp/results")
+            result = self.run_model(data_file_path, model, "/misc/people/idddp/results")
             
             if result:
                 print("got it!!!")
@@ -37,64 +36,64 @@ class MLProcessing:
             flash(f"Model {model} processed successfully. Results saved to {results_dir}.", "success")
             return redirect(url_for('db_home'))  # Redirect to the same page or results page if needed
 
-def list_files(folder):
-        """Connects to the remote server and lists files in the specified folder."""
-        files = []
+    def list_files(self, folder):
+            """Connects to the remote server and lists files in the specified folder."""
+            files = []
+            try:
+                # SSH connection setup
+                ssh_client = paramiko.SSHClient()
+                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                credentials = session.get('lab_credentials')
+
+                if not credentials:
+                    flash('No lab machine credentials found. Please connect first.', 'warning')
+                    return redirect(url_for('lab_connect'))  # Redirect to the lab connection page if no credentials
+
+                host = credentials['host']
+                port = credentials['port']
+                username = credentials['username']
+                password = credentials.get('password')
+                key_filename = credentials.get('key_filename')
+                # List files in the specified directory
+
+                if key_filename:
+                    ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
+                else:
+                    ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
+
+                stdin, stdout, stderr = ssh_client.exec_command(f'ls {folder}')
+                files = stdout.read().decode().splitlines()
+                
+                # Close the SSH connection
+                ssh_client.close()
+
+            except Exception as e:
+                print(f"Error: {e}")
+            return files        
+
+    def run_model(self, data_file_path, model, results_dir):
+        model_location = f"/misc/people/idddp/models/{model}"
+        conda_env_name = "dist_new"  # Replace with your environment name
+
         try:
-            # SSH connection setup
-            ssh_client = paramiko.SSHClient()
-            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            credentials = session.get('lab_credentials')
+            # Use 'bash' shell to activate conda env and then run the Python script
+            result = subprocess.run(
+                f"source /misc/people/idddp/miniconda3/etc/profile.d/conda.sh && conda activate {conda_env_name} && python3 {model_location} {data_file_path}",
+                shell=True, capture_output=True, text=True, check=True, executable="/bin/bash"
+            )
 
-            if not credentials:
-                flash('No lab machine credentials found. Please connect first.', 'warning')
-                return redirect(url_for('lab_connect'))  # Redirect to the lab connection page if no credentials
+            # Log the stdout/stderr for debugging or save them
+            print(f"Test model output: {result.stdout}")
+            print(f"Test model errors (if any): {result.stderr}")
 
-            host = credentials['host']
-            port = credentials['port']
-            username = credentials['username']
-            password = credentials.get('password')
-            key_filename = credentials.get('key_filename')
-            # List files in the specified directory
+            # Optionally save the output of the model run in a file within results_dir
+            output_file = os.path.join(results_dir, f'{data_file_path}_{model}.txt')
+            with open(output_file, 'w') as f:
+                f.write(result.stdout)
 
-            if key_filename:
-                ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
-            else:
-                ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
+            return 1
 
-            stdin, stdout, stderr = ssh_client.exec_command(f'ls {folder}')
-            files = stdout.read().decode().splitlines()
-            
-            # Close the SSH connection
-            ssh_client.close()
-
-        except Exception as e:
-            print(f"Error: {e}")
-        return files        
-
-def run_model(data_file_path, model, results_dir):
-    model_location = f"/misc/people/idddp/models/{model}"
-    conda_env_name = "dist_new"  # Replace with your environment name
-
-    try:
-        # Use 'bash' shell to activate conda env and then run the Python script
-        result = subprocess.run(
-            f"source /misc/people/idddp/miniconda3/etc/profile.d/conda.sh && conda activate {conda_env_name} && python3 {model_location} {data_file_path}",
-            shell=True, capture_output=True, text=True, check=True, executable="/bin/bash"
-        )
-
-        # Log the stdout/stderr for debugging or save them
-        print(f"Test model output: {result.stdout}")
-        print(f"Test model errors (if any): {result.stderr}")
-
-        # Optionally save the output of the model run in a file within results_dir
-        output_file = os.path.join(results_dir, f'{data_file_path}_{model}.txt')
-        with open(output_file, 'w') as f:
-            f.write(result.stdout)
-
-        return 1
-
-    except subprocess.CalledProcessError as e:
-        flash(f"Error running test model: {e.stderr}", "danger")
-        print("Error: ", e.stderr)
-        return 0
+        except subprocess.CalledProcessError as e:
+            flash(f"Error running test model: {e.stderr}", "danger")
+            print("Error: ", e.stderr)
+            return 0
