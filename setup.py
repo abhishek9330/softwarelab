@@ -10,6 +10,10 @@ setup(
     packages=find_packages(),  # Automatically finds and includes packages
     install_requires=[  # List any dependencies
         # e.g., 'numpy', 'pandas'
+        "flask",
+        "google-auth", "google-auth-oauthlib", "google-auth-httplib2","google-api-python-client",
+        "paramiko"
+
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
