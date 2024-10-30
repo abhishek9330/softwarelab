@@ -11,7 +11,7 @@ import shutil
 
 class DownloadPage:
     route = '/download'
-    download_folder = 'downloads/'  # Folder to store the downloaded files
+    download_folder = os.path.abspath('downloads')  # Folder to store the downloaded files
     endpoint_name = 'download'
     methods = ['GET', 'POST']
 
@@ -207,11 +207,13 @@ class DownloadPage:
         :param remote_folder: Path to the file or folder on the lab machine to download.
         :param local_folder: Path to the local folder where the contents should be saved.
         """
+        os.makedirs(self.download_folder, exist_ok=True)
         local_folder = self.download_folder
+        print(local_folder)
         remote_folder = request.form.get('folder')  
         filename = request.form.get('filename')     
         remote_path = os.path.join(remote_folder, filename)
-
+        
         @after_this_request
         def remove_folder(response):
             shutil.rmtree(local_folder)
@@ -242,8 +244,8 @@ class DownloadPage:
                 file_attr = sftp.stat(remote_path)
                 if stat.S_ISREG(file_attr.st_mode):  # It's a file
                     # Ensure the local folder exists
-                    if not os.path.exists(local_folder):
-                        os.makedirs(local_folder)
+                    # if not os.path.exists(local_folder):
+                    #     os.makedirs(local_folder)
 
                     local_file_path = os.path.join(local_folder, os.path.basename(remote_path))
                     print(f"Downloading file: {remote_path} to {local_file_path}")
@@ -256,8 +258,8 @@ class DownloadPage:
 
                 elif stat.S_ISDIR(file_attr.st_mode):  # It's a directory
                     # Ensure the local folder exists
-                    if not os.path.exists(local_folder):
-                        os.makedirs(local_folder)
+                    # if not os.path.exists(local_folder):
+                    #     os.makedirs(local_folder)
 
                     # Stack to track directories to be processed
                     dirs_to_process = [(remote_path, local_folder)]
@@ -298,8 +300,8 @@ class DownloadPage:
                     # Send the zip file as a download
                     return send_file(zip_filepath, as_attachment=True)
 
-            except FileNotFoundError:
-                flash(f"The specified path '{remote_path}' does not exist on the lab machine.", 'danger')
+            except Exception as e:
+                print("Error", e)
                 return redirect(url_for('download'))
 
         except paramiko.SSHException as e:

@@ -1,15 +1,14 @@
-from flask import render_template, request, redirect, url_for, flash, session
+from flask import render_template, request, redirect, url_for, flash, session, after_this_request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 import os
 import paramiko
-
+import shutil
 
 class UploadPage:
     route = '/upload'
-    upload_folder = 'uploads/'  # HARD CODING!!!
-    allowed_extensions = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv', 'xlsx', 'yaml'}
+    upload_folder = os.path.abspath("uploads")
     endpoint_name = 'upload'
     methods = ['GET', 'POST']
 
@@ -41,8 +40,13 @@ class UploadPage:
 
             # Save and process the file if it's allowed
             if file:
+                os.makedirs(self.upload_folder, exist_ok=True)
                 filename = os.path.join(self.upload_folder, file.filename)
-                file.save(filename)
+                print(f"Attempting to save file to: {filename}")
+                try:
+                    file.save(filename)
+                except Exception as e:
+                    print("pakda gaya", e)
                 print(f"File saved to {filename}")  # Debugging output
 
                 if session['server_type'] == 'gdrive':
@@ -50,7 +54,7 @@ class UploadPage:
                 elif session['server_type'] == 'lab':
                     return self.lab(filename, file.filename)
                 elif session['server_type'] == 'aws':
-                    return self.aws(filename, file.filename)
+                    return self.aws(filename, file.filename) 
                 # keep going for more server_types
 
         print("Rendering upload form")  # Debugging output
@@ -147,7 +151,7 @@ class UploadPage:
             ssh_client.close()
             
             try:
-                os.remove(file_path)
+                shutil.rmtree(self.upload_folder)
                 print(f"File '{file_path}' has been removed from the local system.")
             except Exception as e:
                 print(f"Error removing local file '{file_path}': {e}")
