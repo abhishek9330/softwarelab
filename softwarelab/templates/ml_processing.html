@@ -1,54 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ML Processing Page</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
     <div class="container mt-5">
-        <h2>Select a Machine Learning Model and Provide Data Path</h2>
-        <p>Please select the machine learning model you want to run and provide the full path to the data.</p>
+        <h2>Select a Machine Learning Model and Data File</h2>
+        <p>Please select the machine learning model you want to run and the data file you wish to process.</p>
 
-        <form method="POST" action="{{ url_for('ml_process') }}">
+        <form method="POST" action="/ml_process">
+            <!-- Model Selection -->
             <div class="form-group">
                 <label for="model">Choose a model:</label><br>
-                <input type="radio" id="test" name="model" value="test">
-                <label for="test">Dummy ML model</label><br>
-
-                <input type="radio" id="kmeans" name="model" value="k-means">
-                <label for="kmeans">K-Means</label><br>
-
-                <input type="radio" id="regression" name="model" value="regression">
-                <label for="regression">Regression</label><br>
-
-                <input type="radio" id="decision_tree" name="model" value="decision_tree">
-                <label for="decision_tree">Decision Tree</label><br>
-
-                <!-- Add more models as needed -->
+                {% for model in models %}
+                    <input type="radio" id="{{ model }}" name="model" value="{{ model }}">
+                    <label for="{{ model }}">{{ model }}</label><br>
+                {% endfor %}
             </div>
 
+            <!-- Data File Selection -->
             <div class="form-group">
-                <label for="data_path">Full Path to Data File:</label>
-                <input type="text" class="form-control" id="data_path" name="data_path" placeholder="Enter the full path to the data file" required>
+                <label for="data_file">Choose a data file:</label><br>
+                {% for data_file in data_files %}
+                    <input type="radio" id="{{ data_file }}" name="data_file" value="{{ data_file }}">
+                    <label for="{{ data_file }}">{{ data_file }}</label><br>
+                {% endfor %}
             </div>
 
             <button type="submit" class="btn btn-primary">Run Model</button>
         </form>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="mt-4">
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-        {% endwith %}
     </div>
-
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

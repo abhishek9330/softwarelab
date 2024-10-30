@@ -1,6 +1,7 @@
 from flask import render_template, request, session, flash, redirect, url_for
 import os
 import subprocess
+import paramiko
 
 class MLProcessing:
     route = '/ml_process'
@@ -9,15 +10,15 @@ class MLProcessing:
 
     @staticmethod
     def view_func():
+        if request.method=="GET":
+            models = list_files("/misc/people/idddp/models")
+            data_files = list_files("/misc/people/idddp/data")
+            return render_template('ml_processing.html', models=models, data_files=data_files)
+
         if request.method == "POST":
             # Get the selected model and data file path from the form
             model = request.form.get("model")
-            data_file_path = request.form.get("data_path")
-
-            # Check if the data file exists on the lab machine
-            if not os.path.exists(data_file_path):
-                flash(f"The specified data path {data_file_path} does not exist.", "danger")
-                return redirect(url_for('ml_process'))
+            data_file_path = request.form.get("data_file")
 
             # Define the directory where results will be saved
             results_dir = '/misc/people/idddp/results'
@@ -25,17 +26,9 @@ class MLProcessing:
                 os.makedirs(results_dir)
 
             # Based on the selected model, run the appropriate function
-            if model=='test':
-                result = run_test(data_file_path, results_dir)
-            elif model == "k-means":
-                result = run_kmeans(data_file_path, results_dir)
-            elif model == "regression":
-                result = run_regression(data_file_path, results_dir)
-            elif model == "decision_tree":
-                result = run_decision_tree(data_file_path, results_dir)
-            else:
-                flash("Invalid model selection.", "danger")
-                return redirect(url_for('ml_process'))
+            
+            result = run_model(data_file_path, model, "/misc/people/idddp/results")
+            
             if result:
                 print("got it!!!")
             else:
@@ -44,11 +37,43 @@ class MLProcessing:
             flash(f"Model {model} processed successfully. Results saved to {results_dir}.", "success")
             return redirect(url_for('db_home'))  # Redirect to the same page or results page if needed
 
-        # If it's a GET request, render the model selection form
-        return render_template("ml_processing.html")
+def list_files(folder):
+        """Connects to the remote server and lists files in the specified folder."""
+        files = []
+        try:
+            # SSH connection setup
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            credentials = session.get('lab_credentials')
 
-def run_test(data_file_path, results_dir):
-    model_location = "/misc/people/idddp/models/test.py"
+            if not credentials:
+                flash('No lab machine credentials found. Please connect first.', 'warning')
+                return redirect(url_for('lab_connect'))  # Redirect to the lab connection page if no credentials
+
+            host = credentials['host']
+            port = credentials['port']
+            username = credentials['username']
+            password = credentials.get('password')
+            key_filename = credentials.get('key_filename')
+            # List files in the specified directory
+
+            if key_filename:
+                ssh_client.connect(host, port=port, username=username, key_filename=key_filename)
+            else:
+                ssh_client.connect(host, port=port, username=username, password=password, look_for_keys=False, allow_agent=False)
+
+            stdin, stdout, stderr = ssh_client.exec_command(f'ls {folder}')
+            files = stdout.read().decode().splitlines()
+            
+            # Close the SSH connection
+            ssh_client.close()
+
+        except Exception as e:
+            print(f"Error: {e}")
+        return files        
+
+def run_model(data_file_path, model, results_dir):
+    model_location = f"/misc/people/idddp/models/{model}"
     conda_env_name = "dist_new"  # Replace with your environment name
 
     try:
@@ -63,7 +88,7 @@ def run_test(data_file_path, results_dir):
         print(f"Test model errors (if any): {result.stderr}")
 
         # Optionally save the output of the model run in a file within results_dir
-        output_file = os.path.join(results_dir, 'test_model_output.txt')
+        output_file = os.path.join(results_dir, f'{data_file_path}_{model}.txt')
         with open(output_file, 'w') as f:
             f.write(result.stdout)
 
@@ -73,12 +98,3 @@ def run_test(data_file_path, results_dir):
         flash(f"Error running test model: {e.stderr}", "danger")
         print("Error: ", e.stderr)
         return 0
-
-def run_kmeans(data_file_path, results_dir):
-    pass
-
-def run_regression(data_file_path, results_dir):
-    pass
-
-def run_decision_tree(data_file_path, results_dir):
-    pass
